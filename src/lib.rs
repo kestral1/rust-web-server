@@ -1,4 +1,3 @@
-
 use std::{
     sync::{mpsc, Arc, Mutex},
     thread,
@@ -23,7 +22,7 @@ impl ThreadPool {
         assert!(size > 0);
 
         let (sender, receiver) = mpsc::channel();
-        
+
         let receiver = Arc::new(Mutex::new(receiver));
 
         let mut workers = Vec::with_capacity(size);
@@ -33,7 +32,10 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-        ThreadPool { workers, sender: Some(sender) }
+        ThreadPool {
+            workers,
+            sender: Some(sender),
+        }
     }
 
     pub fn execute<F>(&self, f: F)
@@ -47,12 +49,12 @@ impl ThreadPool {
 }
 
 impl Drop for ThreadPool {
-    fn drop (&mut self) {
+    fn drop(&mut self) {
         drop(self.sender.take());
-        
+
         for worker in &mut self.workers.drain(..) {
             println!("shutting worker down {}", worker.id);
-        
+
             worker.thread.join().unwrap();
         }
     }
@@ -65,15 +67,14 @@ struct Worker {
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
-        
         let thread = thread::spawn(move || loop {
             let message = receiver.lock().unwrap().recv();
-            
+
             match message {
                 Ok(job) => {
                     println!("Worker {id} got a job; executing.");
                     job();
-                },
+                }
                 Err(_) => {
                     println!("worker {id} disconnected, shutting down.");
                     break;
