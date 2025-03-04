@@ -1,17 +1,23 @@
 use std::{
     fs,
     io::{prelude::*, BufReader},
-    net::{TcpListener, TcpStream}
+    net::{TcpListener, TcpStream},
+    time::Duration,
+    thread,
 };
+use web_server_rust_book::ThreadPool;
 
 fn main() {
     
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let pool = ThreadPool::new(4);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
         
-        handle_connection(stream);
+        pool.execute(|| {   
+            handle_connection(stream);
+        });
     }
 }
 
@@ -22,23 +28,56 @@ fn handle_connection(mut stream: TcpStream) {
 
     println!("Connection established");
 
-    if request_line == "GET / HTTP/1.1" {
-        let status_line = "HTTP/1.1 200 OK";
-        let contents = fs::read_to_string("hello.html").unwrap();
-        let length = contents.len();
-        
-        let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
-        
-        stream.write_all(response.as_bytes()).unwrap();
+    match &request_line[..] {
+        "GET / HTTP/1.1" => {
+            let status_line = "HTTP/1.1 200 OK";
+            let contents = fs::read_to_string("hello.html").unwrap();
+            let length = contents.len();
+            
+            let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+            
+            stream.write_all(response.as_bytes()).unwrap();
+        },
+        "GET /foo HTTP/1.1" => {
+            let status_line = "HTTP/1.1 200 OK";
+            let contents = fs::read_to_string("foo.html").unwrap();
+            let length = contents.len();
+            
+            let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+            
+            stream.write_all(response.as_bytes()).unwrap();
+        }
+        "GET /sleep HTTP/1.1" => {
+            thread::sleep(Duration::from_secs(5));
+            let status_line = "HTTP/1.1 200 OK";
+            let contents = fs::read_to_string("foo.html").unwrap();
+            let length = contents.len();
+            
+            let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+            
+            stream.write_all(response.as_bytes()).unwrap();
+        }
+        _ => {}
+
     }
-    else if request_line == "GET /foo HTTP/1.1" {
-        let status_line = "HTTP/1.1 200 OK";
-        let contents = fs::read_to_string("foo.html").unwrap();
-        let length = contents.len();
+
+    // if request_line == "GET / HTTP/1.1" {
+    //     let status_line = "HTTP/1.1 200 OK";
+    //     let contents = fs::read_to_string("hello.html").unwrap();
+    //     let length = contents.len();
         
-        let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+    //     let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
         
-        stream.write_all(response.as_bytes()).unwrap();
-    }
+    //     stream.write_all(response.as_bytes()).unwrap();
+    // }
+    // else if request_line == "GET /foo HTTP/1.1" {
+    //     let status_line = "HTTP/1.1 200 OK";
+    //     let contents = fs::read_to_string("foo.html").unwrap();
+    //     let length = contents.len();
+        
+    //     let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+        
+    //     stream.write_all(response.as_bytes()).unwrap();
+    // }
 
 }
